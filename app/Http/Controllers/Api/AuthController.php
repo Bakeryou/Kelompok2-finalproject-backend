@@ -19,10 +19,17 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $this->validate($request, [
-            'email' => 'required|string',
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email',
             'password' => 'required|string'
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation fails',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
         $token = auth()->attempt([
             'email' => $request->email,
@@ -42,10 +49,18 @@ class AuthController extends Controller
                     'access_token' => [
                         'token' => $token,
                         'type' => 'Bearer',
-                        'expires_in' => Auth::factory()->getTTL() * 1,
+                        // 'expires_in' => Auth::factory()->getTTL() * 60,
                     ],
                 ],
             ]);
+        } else {
+            return response()->json([
+                'meta' => [
+                    'code' => 401,
+                    'status' => 'error',
+                    'message' => 'Invalid email or password',
+                ],
+            ], 401);
         }
     }
 
@@ -62,7 +77,10 @@ class AuthController extends Controller
 
     // Jika validasi gagal, kembalikan pesan kesalahan
     if ($validator->fails()) {
-        return response()->json($validator->messages(), 422);
+        return response()->json([
+            'message' => 'Validation fails',
+            'errors' => $validator->errors()
+        ], 422);
     }
 
     // Buat pengguna baru
@@ -88,7 +106,7 @@ class AuthController extends Controller
             'access_token' => [
                 'token' => $token,
                 'type' => 'Bearer',
-                // 'expires_in' => auth('api')->factory()->getTTL() * 60, 
+                // 'expires_in' => Auth::factory()->getTTL() * 60,
             ],
         ],
     ]);
@@ -99,15 +117,48 @@ class AuthController extends Controller
         $user = $request->user();
 
         $request->validate([
-            'address' => 'nullable|string|max:255',
-            'postal_code' => 'nullable|string|max:10',
-            'city' => 'nullable|string|max:255',
-            'phone_number' => 'nullable|string|max:15',
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'address' => 'required|string|max:255',
+            'postal_code' => 'required|string|max:10',
+            'city' => 'required|string|max:255',
+            'phone_number' => 'required|string|max:15',
         ]);
 
-        $user->update($request->only('address', 'postal_code', 'city', 'phone_number'));
+        $user->update($request->only('name', 'email', 'address', 'postal_code', 'city', 'phone_number'));
 
         return response()->json(['message' => 'Profile updated successfully']);
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'old_password' => 'required',
+            'password' => 'required|string|min:6|max:100',
+            'confirm_password' => 'required|same:password'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation fails',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = $request->user();
+
+        if (Hash::check($request->old_password, $user->password)) {
+            $user->update([
+                'password' => Hash::make($request->password)
+            ]);
+            return response()->json([
+                'message' => 'Password successfully updated',
+            ], 200);
+        } else {
+            return response()->json([
+                'message' => 'Old password does not match',
+            ], 400);
+        }
     }
 
     public function me()

@@ -29,13 +29,12 @@ Route::post('register', [AuthController::class, 'register']);
 Route::middleware('auth:api')->group(function () {
     // Route untuk mendapatkan informasi pengguna yang sedang login
     Route::get('me', [AuthController::class, 'me']);
-
     // Route untuk logout
     Route::post('logout', [AuthController::class, 'logout']);
-
     // Route untuk update profile
     Route::post('update-profile', [AuthController::class, 'updateProfile']);
-
+    // Route untuk update password
+    Route::post('update-password', [AuthController::class, 'updatePassword']);
     // Rute khusus untuk admin
     Route::middleware(['auth:api', 'checkrole:admin'])->group(function () {
         Route::get('admin/dashboard', [AdminController::class, 'dashboard']);
