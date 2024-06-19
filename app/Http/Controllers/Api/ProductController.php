@@ -13,15 +13,17 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::all();
-        return response()->json(['status' => 'success', 'data' => $products]);
-    }
+        foreach ($products as $product) {
+            $product->image_url = url('uploads/images/' . $product->image);
+        }
+        return response()->json(['status' => 'success', 'data' => $products]);    }
 
     public function store(Request $request)
 {
     $validator = Validator::make($request->all(), [
         'name' => 'required|string',
         'price' => 'required|numeric',
-        'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // Pastikan validasi gambar ditambahkan
+        'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
         'stock' => 'required|integer',
         'weight' => 'required|numeric',
         'description' => 'required|string',
@@ -39,12 +41,16 @@ class ProductController extends Controller
     // Membuat produk baru dengan data yang diterima dan menyimpan nama gambar baru
     $product = Product::create(array_merge($request->except('image'), ['image' => $imageName]));
 
+    // Tambahkan URL lengkap untuk gambar produk
+    $product->image_url = url('uploads/images/' . $product->image);
+
     return response()->json(['status' => 'success', 'data' => $product], 201);
 }
 
     public function show($id)
     {
         $product = Product::findOrFail($id);
+        $product->image_url = url('uploads/images/' . $product->image);
         return response()->json(['status' => 'success', 'data' => $product]);
     }
 
@@ -55,7 +61,7 @@ class ProductController extends Controller
     $validator = Validator::make($request->all(), [
         'name' => 'required|string',
         'price' => 'required|numeric',
-        'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // Pastikan validasi gambar ditambahkan
+        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Pastikan validasi gambar ditambahkan
         'stock' => 'required|integer',
         'weight' => 'required|numeric',
         'description' => 'required|string',
@@ -80,6 +86,9 @@ class ProductController extends Controller
 
     $product->update($request->except('image')); // Menyimpan data kecuali gambar
 
+    // Tambahkan URL lengkap untuk gambar produk
+    $product->image_url = url('uploads/images/' . $product->image);
+    
     return response()->json(['status' => 'success', 'data' => $product]);
 }
 

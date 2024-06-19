@@ -25,6 +25,12 @@ Route::post('login', [AuthController::class, 'login']);
 // Route untuk register
 Route::post('register', [AuthController::class, 'register']);
 
+Route::get('products/{id}', [ProductController::class, 'show']);
+Route::get('products', [ProductController::class, 'index']);
+
+Route::get('categories/{id}', [CategoryController::class, 'show']);
+Route::get('categories', [CategoryController::class, 'index']);
+
 // Route-rute yang memerlukan autentikasi JWT
 Route::middleware('auth:api')->group(function () {
     // Route untuk mendapatkan informasi pengguna yang sedang login
@@ -41,8 +47,6 @@ Route::middleware('auth:api')->group(function () {
         
         // Route untuk menambahkan produk
         Route::post('products', [ProductController::class, 'store']);
-        Route::get('products/{id}', [ProductController::class, 'show']);
-        Route::get('products', [ProductController::class, 'index']);
         // Route untuk mengedit produk
         Route::post('products/{id}', [ProductController::class, 'update']);
         // Route untuk menghapus produk
@@ -50,8 +54,6 @@ Route::middleware('auth:api')->group(function () {
 
         // Route untuk menambahkan kategori
         Route::post('categories', [CategoryController::class, 'store']);
-        Route::get('categories/{id}', [CategoryController::class, 'show']);
-        Route::get('categories', [CategoryController::class, 'index']);
         // Route untuk mengedit kategori
         Route::post('categories/{id}', [CategoryController::class, 'update']);
         // Route untuk menghapus kategori
