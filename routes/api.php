@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Http\Request;
@@ -58,11 +60,24 @@ Route::middleware('auth:api')->group(function () {
         Route::post('categories/{id}', [CategoryController::class, 'update']);
         // Route untuk menghapus kategori
         Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
+
+        Route::get('orders', [OrderController::class, 'index']);
+        Route::get('orders/{id}', [OrderController::class, 'show']);
+        Route::post('orders/status/{id}', [OrderController::class, 'updateStatus']);
     });
 
     // Rute khusus untuk pengguna
     Route::middleware('checkrole:user')->group(function () {
         Route::get('user/dashboard', [UserController::class, 'dashboard']);
-        // Rute-rute lain untuk pengguna
+        
+         // Route untuk keranjang belanja
+         Route::get('cart', [CartController::class, 'index']);
+         Route::post('cart', [CartController::class, 'store']);
+         Route::post('cart/{id}', [CartController::class, 'update']);
+         Route::delete('cart/{id}', [CartController::class, 'destroy']);
+
+         Route::post('orders', [OrderController::class, 'checkout']);
+        Route::get('orders', [OrderController::class, 'index']);
+        Route::get('orders/{id}', [OrderController::class, 'show']);
     });
 });
