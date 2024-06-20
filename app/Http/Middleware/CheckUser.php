@@ -6,14 +6,14 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
-class CheckRole
+class CheckUser
 {
-    public function handle(Request $request, Closure $next, $role)
+    public function handle(Request $request, Closure $next)
     {
-        if (Auth::user() && (Auth::user()->role == $role)) {
+        if (Auth::check() && Auth::user()->role === 'user') {
             return $next($request);
         }
-        
+
         return response()->json(['error' => 'Unauthorized'], 401);
     }
 }

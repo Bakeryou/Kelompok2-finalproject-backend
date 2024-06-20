@@ -44,7 +44,7 @@ Route::middleware('auth:api')->group(function () {
     // Route untuk update password
     Route::post('update-password', [AuthController::class, 'updatePassword']);
     // Rute khusus untuk admin
-    Route::middleware(['auth:api', 'checkrole:admin'])->group(function () {
+    Route::middleware('checkrole:admin')->group(function () {
         Route::get('admin/dashboard', [AdminController::class, 'dashboard']);
         
         // Route untuk menambahkan produk
@@ -67,7 +67,7 @@ Route::middleware('auth:api')->group(function () {
     });
 
     // Rute khusus untuk pengguna
-    Route::middleware('checkrole:user')->group(function () {
+    Route::middleware('checkuser')->group(function () {
         Route::get('user/dashboard', [UserController::class, 'dashboard']);
         
          // Route untuk keranjang belanja
