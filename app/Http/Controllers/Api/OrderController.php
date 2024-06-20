@@ -24,7 +24,7 @@ class OrderController extends Controller
 
     public function show($id)
     {
-        $order = Order::with('user', 'cart.items.product')->findOrFail($id);
+        $order = Order::with('user', 'cart.items.product', 'orderItems.product')->findOrFail($id);
         return response()->json($order);
     }
 
