@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('cart_id')->nullable()->constrained('carts')->onDelete('set null');
             $table->string('order_number')->unique();
-            $table->enum('order_type', ['pickup', 'delivery'])->default('pickup');
+            $table->enum('order_type', ['Pickup', 'Delivery'])->default('Pickup');
             $table->string('customer_name');
             $table->string('customer_email');
             $table->string('customer_phone');
@@ -28,7 +28,9 @@ return new class extends Migration
             $table->double('tax')->default(0);
             $table->double('shipping')->default(0);
             $table->double('total')->default(0);
-            $table->enum('status', ['process', 'completed', 'canceled'])->default('process');
+            $table->enum('status_payment', ['Unpaid', 'Paid'])->default('Unpaid');
+            $table->enum('status', ['Pending', 'Process', 'Completed', 'Canceled'])->default('Pending');
+            $table->string('snap_token')->nullable();
             $table->timestamps();
         });
     }

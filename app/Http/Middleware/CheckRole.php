@@ -10,7 +10,13 @@ class CheckRole
 {
     public function handle(Request $request, Closure $next, $role)
     {
-        if (Auth::user() && (Auth::user()->role == $role)) {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        
+        if ($user->role === $role) {
             return $next($request);
         }
         

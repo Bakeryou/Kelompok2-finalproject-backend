@@ -48,25 +48,38 @@ class CartController extends Controller
         return response()->json(['status' => 'success', 'data' => $cartItem]);
     }
 
-    public function update(Request $request, $id)
+    public function increase(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'qty' => 'required|integer|min:1',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['status' => 'error', 'message' => $validator->errors()], 400);
-        }
-
         $cartItem = CartItem::findOrFail($id);
-        $cartItem->qty = $request->qty;
-        $cartItem->total_weight = $cartItem->weight * $request->qty;
-        $cartItem->total_price = $cartItem->price * $request->qty;
+        $cartItem->qty += 1;
+        $cartItem->total_weight = $cartItem->weight * $cartItem->qty;
+        $cartItem->total_price = $cartItem->price * $cartItem->qty;
         $cartItem->save();
-
+    
         $cartItem->cart->calculateTotals();
-
-        return response()->json(['status' => 'success', 'data' => $cartItem]);
+    
+        return response()->json(['status' => 'success', 'data' => [
+            'cartItem' => $cartItem,
+            'cart' => $cartItem->cart,
+        ]]);
+    }
+    
+    public function decrease(Request $request, $id)
+    {
+        $cartItem = CartItem::findOrFail($id);
+        if ($cartItem->qty > 1) {
+            $cartItem->qty -= 1;
+            $cartItem->total_weight = $cartItem->weight * $cartItem->qty;
+            $cartItem->total_price = $cartItem->price * $cartItem->qty;
+            $cartItem->save();
+    
+            $cartItem->cart->calculateTotals();
+        }
+    
+        return response()->json(['status' => 'success', 'data' => [
+            'cartItem' => $cartItem,
+            'cart' => $cartItem->cart,
+        ]]);
     }
 
     public function destroy($id)

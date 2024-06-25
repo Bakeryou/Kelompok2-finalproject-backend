@@ -9,6 +9,8 @@ use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Midtrans\Config;
+use Midtrans\Snap;
 
 class OrderController extends Controller
 {
@@ -31,7 +33,7 @@ class OrderController extends Controller
     public function checkout(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'order_type' => 'required|in:pickup,delivery',
+            'order_type' => 'required|in:Pickup,Delivery',
             'customer_name' => 'required|string|max:255',
             'customer_email' => 'required|string|email|max:255',
             'customer_phone' => 'required|string|max:20',
@@ -68,55 +70,81 @@ class OrderController extends Controller
         }
 
         $customerCity = $user->city;
-        if ($request->order_type == 'delivery' && strtolower($customerCity) !== 'surabaya') {
+        if ($request->order_type == 'Delivery' && strtolower($customerCity) !== 'surabaya') {
             return response()->json(['status' => 'error', 'message' => 'Delivery is only available for Surabaya area'], 400);
         }
-        
-        $order = Order::create([
-            'user_id' => $user->id,
-            'cart_id' => $cart->id,
-            'order_number' => 'ORD' . strtoupper(substr(md5(random_bytes(10)), 0, 6)),
-            'order_type' => $request->order_type,
-            'customer_name' => $user->name,
-            'customer_email' => $user->email,
-            'customer_phone' => $user->phone_number,
-            'customer_address' => $user->address,
-            'customer_postal_code' => $user->postal_code,
-            'customer_city' => $user->city,
-            'notes' => $request->notes,
-            'subtotal' => $request->subtotal,
-            'tax' => $request->tax,
-            'shipping' => $request->shipping,
-            'total' => $request->total,
-            'status' => 'process',
-        ]);
 
-        foreach ($cart->items as $cartItem) {
-            $product = $cartItem->product;
-            if ($product->stock < $cartItem->qty) {
-                return response()->json(['status' => 'error', 'message' => 'Insufficient stock for product ' . $product->name], 400);
-            }
-            $product->update(['stock' => $product->stock - $cartItem->qty]);
-
-            OrderItem::create([
-                'order_id' => $order->id,
-                'product_id' => $product->id,
-                'quantity' => $cartItem->qty,
-                'price' => $cartItem->price,
-                'total' => $cartItem->qty * $cartItem->price,
+            $order = Order::create([
+                'user_id' => $user->id,
+                'cart_id' => $cart->id,
+                'order_number' => 'ORD' . strtoupper(substr(md5(random_bytes(10)), 0, 6)),
+                'order_type' => $request->order_type,
+                'customer_name' => $user->name,
+                'customer_email' => $user->email,
+                'customer_phone' => $user->phone_number,
+                'customer_address' => $user->address,
+                'customer_postal_code' => $user->postal_code,
+                'customer_city' => $user->city,
+                'notes' => $request->notes,
+                'subtotal' => $request->subtotal,
+                'tax' => $request->tax,
+                'shipping' => $request->shipping,
+                'total' => $request->total,
+                'status_payment' => 'Unpaid',
+                'status' => 'Pending',
+                'snap_token' => null,
             ]);
-        }
 
-        $cart->items()->delete(); // Hapus item-item di dalam cart
-        $cart->delete();
+            foreach ($cart->items as $cartItem) {
+                $product = $cartItem->product;
+                if ($product->stock < $cartItem->qty) {
+                    return response()->json(['status' => 'error', 'message' => 'Insufficient stock for product ' . $product->name], 400);
+                }
+                $product->update(['stock' => $product->stock - $cartItem->qty]);
 
-        return response()->json(['status' => 'success', 'order' => $order]);
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $product->id,
+                    'quantity' => $cartItem->qty,
+                    'price' => $cartItem->price,
+                    'total' => $cartItem->qty * $cartItem->price,
+                ]);
+            }
+
+            $cart->items()->delete(); // Hapus item-item di dalam cart
+            $cart->delete();
+
+            // Midtrans
+            Config::$serverKey = config('midtrans.server_key');
+            Config::$isProduction = config('midtrans.is_production');
+            Config::$isSanitized = config('midtrans.is_sanitized');
+            Config::$is3ds = config('midtrans.is_3ds');
+
+            $params = [
+                'transaction_details' => [
+                    'order_id' => $order->id,
+                    'gross_amount' => $order->total,
+                ],
+                'customer_details' => [
+                    'first_name' => $user->name,
+                    'last_name' => '',
+                    'email' => $user->email,
+                    'phone' => $user->phone_number,
+                ],
+            ];
+
+            $snapToken = Snap::getSnapToken($params);
+
+            $order->snap_token = $snapToken;
+            $order->save();
+
+            return response()->json(['status' => 'success', 'order' => $order, 'snapToken' => $snapToken]);
     }
 
     public function updateStatus(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:process,completed,canceled',
+            'status' => 'required|in:Pending,Process,Completed,Canceled',
         ]);
 
         if ($validator->fails()) {
@@ -127,6 +155,30 @@ class OrderController extends Controller
         $order->status = $request->status;
         $order->save();
 
+        if ($request->status === 'Canceled') {
+            $order->snap_token = null;
+            $order->save();
+        }
+
         return response()->json($order);
+    }
+    public function getClientKey()
+    {
+        return response()->json(['client_key' => config('midtrans.client_key')]);
+    }
+
+    public function callback(Request $request)
+    {
+        $serverKey = config('midtrans.server_key');
+        $hashed = hash("sha512", $request->order_id.$request->status_code.$request->gross_amount.$serverKey);
+        if($hashed == $request->signature_key){
+            if($request->transaction_status == 'capture' or $request->transaction_status == 'settlement'){
+                $order = Order::findOrFail($request->order_id);
+                $order->status_payment = 'Paid';
+                $order->status = 'Process';
+                $order->save();
+            }
+        }
+        return response()->json(['status' => 'success']);
     }
 }

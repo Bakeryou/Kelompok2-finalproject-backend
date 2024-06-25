@@ -33,6 +33,8 @@ Route::get('products', [ProductController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('categories', [CategoryController::class, 'index']);
 
+Route::post('midtrans-callback', [OrderController::class, 'callback']);
+
 // Route-rute yang memerlukan autentikasi JWT
 Route::middleware('auth:api')->group(function () {
     // Route untuk mendapatkan informasi pengguna yang sedang login
@@ -44,9 +46,10 @@ Route::middleware('auth:api')->group(function () {
     // Route untuk update password
     Route::post('update-password', [AuthController::class, 'updatePassword']);
     // Rute khusus untuk admin
-    Route::middleware('checkrole:admin')->group(function () {
+    Route::middleware(['auth:api', 'checkrole:admin'])->group(function () {
         Route::get('admin/dashboard', [AdminController::class, 'dashboard']);
-        
+        Route::get('admin/users', [AdminController::class, 'getAllUsers']);
+
         // Route untuk menambahkan produk
         Route::post('products', [ProductController::class, 'store']);
         // Route untuk mengedit produk
@@ -61,23 +64,27 @@ Route::middleware('auth:api')->group(function () {
         // Route untuk menghapus kategori
         Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
 
-        Route::get('orders', [OrderController::class, 'index']);
-        Route::get('orders/{id}', [OrderController::class, 'show']);
-        Route::post('orders/status/{id}', [OrderController::class, 'updateStatus']);
+        Route::get('orders-admin', [OrderController::class, 'index']);
+        Route::get('orders-admin/{id}', [OrderController::class, 'show']);
+        Route::post('orders-admin/status/{id}', [OrderController::class, 'updateStatus']);
     });
 
     // Rute khusus untuk pengguna
-    Route::middleware('checkuser')->group(function () {
+    Route::middleware(['auth:api', 'checkrole:user'])->group(function () {
         Route::get('user/dashboard', [UserController::class, 'dashboard']);
         
-         // Route untuk keranjang belanja
-         Route::get('cart', [CartController::class, 'index']);
-         Route::post('cart', [CartController::class, 'store']);
-         Route::post('cart/{id}', [CartController::class, 'update']);
-         Route::delete('cart/{id}', [CartController::class, 'destroy']);
+        // Route untuk keranjang belanja
+        Route::get('cart', [CartController::class, 'index']);
+        Route::post('cart', [CartController::class, 'store']);
+        Route::post('cart/{id}/decrease', [CartController::class, 'decrease']);
+        Route::post('cart/{id}/increase', [CartController::class, 'increase']);
+        Route::delete('cart/{id}', [CartController::class, 'destroy']);
 
-         Route::post('orders', [OrderController::class, 'checkout']);
+        Route::post('orders', [OrderController::class, 'checkout']);
         Route::get('orders', [OrderController::class, 'index']);
         Route::get('orders/{id}', [OrderController::class, 'show']);
+        Route::post('orders/status/{id}', [OrderController::class, 'updateStatus']);
+
+        Route::get('midtrans-client-key', [OrderController::class, 'getClientKey']);
     });
 });
